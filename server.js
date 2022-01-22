@@ -10,12 +10,12 @@ function onHttpStart() {
 
 // setup a 'route' to listen on the default url path (http://localhost)
 app.get("/about", function(req,res){
-    res.send("<a href='/about'>Go to the about page</a>");
+    res.send("<a href='about.html'>Go to the about page</a>");
 });
 
 // setup another route to listen on /about
 app.get("/", function(req,res){
-    res.send("<a href='/' </a>");
+    res.send("<a href='home.html' </a>");
 });
 
 // setup http server to listen on HTTP_PORT
