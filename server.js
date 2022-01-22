@@ -1,5 +1,6 @@
 var express = require("express");
 var app = express();
+var path=require("path");
 
 var HTTP_PORT = process.env.PORT || 8080;
 
@@ -9,8 +10,8 @@ function onHttpStart() {
 }
 
 // setup a 'route' to listen on the default url path (http://localhost)
-app.get("about.html", function(req,res){
-    res.send("<a href='about.html'>Go to the about page</a>");
+app.get("/", function(req,res){
+    res.sendFile(__dirname,"/views/home.html")
 });
 
 // setup another route to listen on /about
