@@ -1,14 +1,6 @@
 {
-  "name": "web322-app",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Ishpreet Kaur",
-  "license": "ISC",
   "dependencies": {
-    "express": "^4.17.2"
+    "express": "^4.17.2",
+    "loader.js": "^4.7.0"
   }
 }
