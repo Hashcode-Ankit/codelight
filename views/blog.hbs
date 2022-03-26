@@ -1,5 +1,10 @@
 <div class="row">
     <section class="main col-md-9">
+        {{#if data.dataThere}}
+           <div class="col-md-12 text-center">
+            <p>Please try another Post / Category</p>
+           </div>
+        {{/if}}
         {{#if data.post}}
         <article>
             <h2>{{data.post.title}}</h2>

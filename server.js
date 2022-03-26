@@ -120,6 +120,17 @@ app.get("/posts/add", function(req,res){
    blog.getCategories().catch((err)=>{
     res.render(path.join(__dirname,"/views/addPost.hbs"), {categories: []});
    })
+
+});
+app.get("/posts", function(req,res){
+  blog.getAllPosts().then(data=>{
+    if(data.length>0)
+    res.render(path.join(__dirname,"/views/posts.hbs"), {posts: data});
+    else
+    res.render(path.join(__dirname,"/views/posts.hbs"), {dataThere: "no result returned"});
+  }).catch(e=>{
+    res.render("posts", {message: "no results"});
+  })
 });
 app.use(upload.single("featureImage"));
 app.post('/posts/add',(req, res, next)=>{
@@ -155,13 +166,7 @@ app.post('/posts/add',(req, res, next)=>{
         }
         res.redirect('/posts');   
 });
-app.get("/posts", function(req,res){
-    blog.getAllPosts().then(data=>{
-      res.render(path.join(__dirname,"/views/posts.hbs"), {posts: data});
-    }).catch(e=>{
-      res.render("posts", {message: "no results"});
-    })
-});
+
 app.get('/posts/category=:category', function(req, res) {
   blog.getPostsByCategory(req.params.category).then(data=>{
     cat=JSON.stringify(data,null,10)
@@ -191,7 +196,10 @@ app.get('/posts/:id', function(req, res) {
 });
 app.get("/categories", function(req,res){
   blog.getCategories().then(data=>{
+    if(data.length>0)
     res.render(path.join(__dirname,"/views/categories.hbs"), {categories: data});
+    else
+    res.render(path.join(__dirname,"/views/categories.hbs"), {dataThere: "No results found"});
   }).catch((e)=>{
     res.render(path.join(__dirname,"/views/categories.hbs"), {message: "no results"});
   })
@@ -226,6 +234,10 @@ app.get('/blog', async (req, res) => {
 
       posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
       let post = posts[0]; 
+      if(posts[0])
+       viewData.dataThere=false;
+      else
+        viewData.dataThere=true;
       viewData.posts = posts;
       viewData.post = post;
 

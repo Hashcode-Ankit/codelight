@@ -19,11 +19,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {{#if message}}
-                     <div class="col-md-12 text-center">
-                        <strong>{{message}}</strong>
-                    </div>
-                    {{/if}}
+                    <tr>
+                    {{#if dataThere}}
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td >{{dataThere}}</td>
+                    <td></td>
+                    <td></td>
+                      {{/if}}
+                    </tr>
+
                       {{#each posts}}
                     <tr>
                       
