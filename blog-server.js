@@ -28,9 +28,7 @@ var Category= sequelize.define('Category', {
 Post.belongsTo(Category, {foreignKey: 'category'});
 
 
-function initialize(val){
-    var connect =false;
-   sequelize.sync({ force: true }).then(()=>{connect=true});
+function initialize(){
    return new Promise((resolve,reject)=>{
     setTimeout(()=>{
         sequelize.sync({ force: true }).then(()=> {

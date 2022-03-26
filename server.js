@@ -300,9 +300,8 @@ app.get('*', function (req, res) {
 })
 
 // setup http server to listen on HTTP_PORT
-blog.initialize(true).then(data=>{
+blog.initialize().then(data=>{
   app.listen(HTTP_PORT, onHttpStart);
-})
-blog.initialize(false).catch(e=>{
+}).catch(e=>{
   console.log(e)
 });
