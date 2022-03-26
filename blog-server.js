@@ -127,6 +127,7 @@ function getPostsByMinDate(minDate){
     })
 }
 function getPostsById(p_id){
+    return new Promise((resolve,reject)=>{
     Post.findAll({
         where:{
             id:p_id
@@ -134,8 +135,9 @@ function getPostsById(p_id){
     }).then(function(data){
       resolve(data) ;
    }).catch(function(error){
-      reject(Error("no results returned"))
+      reject("no results returned")
   });
+})
 }
 function getPublishedPostsByCategory(categoryValue){
       return new Promise((resolve,reject)=>{
