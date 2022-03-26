@@ -13,9 +13,11 @@ var express = require("express");
 var app = express();
 var path=require("path");
 var blog= require('./blog-server.js');
+var exphbs =require('express-handlebars')
 const multer = require("multer");
 const cloudinary = require('cloudinary').v2
 const streamifier = require('streamifier')
+const stripJs = require('strip-js');
 
 cloudinary.config({
   cloud_name: 'der5s0fgu',
@@ -31,20 +33,96 @@ var HTTP_PORT = process.env.PORT || 8080;
 function onHttpStart() {
   console.log("Express http server listening on: " + HTTP_PORT);
 }
+app.use(function(req,res,next){
+  let route = req.path.substring(1);
+  app.locals.activeRoute = "/" + (isNaN(route.split('/')[1]) ? route.replace(/\/(?!.*)/, "") : route.replace(/\/(.*)/, ""));
+  app.locals.viewingCategory = req.query.category;
+  next();
+});
 
+app.engine('hbs', exphbs.engine({
+  extname : '.hbs',
+  helpers:{
+  navLink: function(url, options){
+    return '<li' + 
+        ((url == app.locals.activeRoute) ? ' class="active" ' : '') + 
+        '><a href="' + url + '">' + options.fn(this) + '</a></li>';
+  },
+  equal: function (lvalue, rvalue, options) {
+    if (arguments.length < 3)
+        throw new Error("Handlebars Helper equal needs 2 parameters");
+    if (lvalue != rvalue) {
+        return options.inverse(this);
+    } else {
+        return options.fn(this);
+    }
+  },
+  safeHTML: function(context){
+    return stripJs(context);
+  },
+  formatDate: function(dateObj){
+    let year = dateObj.getFullYear();
+    let month = (dateObj.getMonth() + 1).toString();
+    let day = dateObj.getDate().toString();
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2,'0')}`;
+    }
+}
+}));
+app.set('view engine', 'handlebars');
 // setup a 'route' to listen on the default url path (http://localhost)
 app.use(express.static('public'));
-app.get("/", function(req,res){
-    res.sendFile(path.join(__dirname,"/views/about.html"));
+app.get("/", async function(req,res){
+  let viewData = {};
+
+  try{
+
+      // declare empty array to hold "post" objects
+      let posts = [];
+
+      // if there's a "category" query, filter the returned posts by category
+      if(req.query.category){
+          // Obtain the published "posts" by category
+          posts = await blog.getPublishedPostsByCategory(req.query.category);
+      }else{
+          // Obtain the published "posts"
+          posts = await blog.getPublishedPosts();
+      }
+
+      posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+      let post = posts[0]; 
+      viewData.posts = posts;
+      viewData.post = post;
+
+  }catch(err){
+      viewData.message = "no results";
+  }
+
+  try{
+      let categories = await blog.getCategories();
+      viewData.categories = categories;
+  }catch(err){
+      viewData.categoriesMessage = "no results"
+  }
+  res.render(path.join(__dirname,"/views/blog.hbs"), {data: viewData})
+
+});
+
+app.get("/about", function(req,res){
+  res.render(path.join(__dirname,"/views/about.hbs"));
 });
 
 
 app.get("/posts/add", function(req,res){
-  res.sendFile(path.join(__dirname,"/views/addPost.html"));
+   blog.getCategories().then((data)=>{
+
+    res.render(path.join(__dirname,"/views/addPost.hbs"), {categories: data});
+   })
+   blog.getCategories().catch((err)=>{
+    res.render(path.join(__dirname,"/views/addPost.hbs"), {categories: []});
+   })
 });
 app.use(upload.single("featureImage"));
 app.post('/posts/add',(req, res, next)=>{
-  console.log(req.body);
   if(req.file){
         let streamUpload = (req) => {
           return new Promise((resolve, reject) => {
@@ -62,7 +140,6 @@ app.post('/posts/add',(req, res, next)=>{
       };
         async function upload(req) {
             let result = await streamUpload(req);
-            console.log(result);
             return result;
         }
         upload(req).then((uploaded)=>{
@@ -74,18 +151,15 @@ app.post('/posts/add',(req, res, next)=>{
         function processPost(imageUrl){
             req.body.featureImage = imageUrl;
             blog.addPost(req.body).then(data=>{
-              console.log(data)
         })  
         }
         res.redirect('/posts');   
 });
 app.get("/posts", function(req,res){
     blog.getAllPosts().then(data=>{
-      blogPosts=JSON.stringify(data, null, 2)
-      res.send(blogPosts);
-    })
-    blog.getAllPosts().catch(e=>{
-     console.log(e)
+      res.render(path.join(__dirname,"/views/posts.hbs"), {posts: data});
+    }).catch(e=>{
+      res.render("posts", {message: "no results"});
     })
 });
 app.get('/posts/category=:category', function(req, res) {
@@ -117,29 +191,118 @@ app.get('/posts/:id', function(req, res) {
 });
 app.get("/categories", function(req,res){
   blog.getCategories().then(data=>{
-    cat=JSON.stringify(data,null,10)
-    res.send(cat);
-  })
-  blog.getCategories().catch(e=>{
-   console.log(e)
+    res.render(path.join(__dirname,"/views/categories.hbs"), {categories: data});
+  }).catch((e)=>{
+    res.render(path.join(__dirname,"/views/categories.hbs"), {message: "no results"});
   })
 });
-app.get("/blog", function(req,res){
-  blog.getPublishedPosts().then(data=>{
-    blogPosts=JSON.stringify(data)
-    res.send(blogPosts);
+// app.get("/blog", function(req,res){
+//   blog.getPublishedPosts().then(data=>{
+//     blogPosts=JSON.stringify(data)
+//     res.send(blogPosts);
+//   })
+//   blog.getPublishedPosts().catch(e=>{
+//    console.log(e)
+//   })
+// });
+app.get('/blog', async (req, res) => {
+
+  // Declare an object to store properties for the view
+  let viewData = {};
+
+  try{
+
+      // declare empty array to hold "post" objects
+      let posts = [];
+
+      // if there's a "category" query, filter the returned posts by category
+      if(req.query.category){
+          // Obtain the published "posts" by category
+          posts = await blog.getPublishedPostsByCategory(req.query.category);
+      }else{
+          // Obtain the published "posts"
+          posts = await blog.getPublishedPosts();
+      }
+
+      posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+      let post = posts[0]; 
+      viewData.posts = posts;
+      viewData.post = post;
+
+  }catch(err){
+      viewData.message = "no results";
+  }
+
+  try{
+      let categories = await blog.getCategories();
+      viewData.categories = categories;
+  }catch(err){
+      viewData.categoriesMessage = "no results"
+  }
+  res.render(path.join(__dirname,"/views/blog.hbs"), {data: viewData})
+
+});
+app.get('/blog/:id', async (req, res) => {
+  let viewData = {};
+
+  try{
+      let posts = [];
+      if(req.query.category){
+          posts = await blog.getPublishedPostsByCategory(req.query.category);
+      }else{
+          posts = await blog.getPublishedPosts();
+      }
+      posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+      viewData.posts = posts;
+
+  }catch(err){
+      viewData.message = "no results";
+  }
+
+  try{
+      viewData.post = await blog.getPostsById(req.params.id);
+  }catch(err){
+      viewData.message = "no results"; 
+  }
+
+  try{
+      let categories = await blog.getCategories();
+      viewData.categories = categories;
+  }catch(err){
+      viewData.categoriesMessage = "no results"
+  }
+  res.render(path.join(__dirname,"/views/blog.hbs"),{data: viewData})
+});
+app.use(express.urlencoded({extended: true}));
+app.get("/categories/add", function(req,res){
+  res.render(path.join(__dirname,"/views/addCategory.hbs"));
+});
+app.post('/categories/add',(req, res, next)=>{
+  blog.addCategory(req.body).then().catch();
+  res.redirect('/categories');  
+});
+app.get("/categories/delete/:id", function(req,res){
+  blog.deleteCategoryById(req.params.id).then(()=>{
+    res.render(path.join(__dirname,"/views/addCategory.hbs"));
+  }).catch(()=>{
+    res.render(path.join(__dirname,"/views/addCategory.hbs"),{message:"Unable to Remove Category / Category not found"});
   })
-  blog.getPublishedPosts().catch(e=>{
-   console.log(e)
+});
+app.get("/posts/delete/:id", function(req,res){
+  blog.deletePostById(req.params.id).then(()=>{
+    res.render(path.join(__dirname,"/views/posts.hbs"));
+  }).catch(()=>{
+    res.render(path.join(__dirname,"/views/posts.hbs"),{message:"Unable to Remove Category / Category not found"});
   })
 });
 app.get('*', function (req, res) {
-  res.send("Page Not Found 404");
+  res.render(path.join(__dirname,"/views/404.hbs"))
 })
+
 // setup http server to listen on HTTP_PORT
-blog.initialize().then(data=>{
+blog.initialize(true).then(data=>{
   app.listen(HTTP_PORT, onHttpStart);
 })
-blog.initialize().catch(e=>{
+blog.initialize(false).catch(e=>{
   console.log(e)
 });

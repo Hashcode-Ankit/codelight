@@ -1,32 +1,43 @@
 const { append } = require("express/lib/response");
 const fs = require("fs"); 
-var posts_true=new Array
-var posts=new Array
-var category=new Array
-function initialize(){
-    fs.readFile('data/posts.json', 'utf8', (err, data) => {
-        if (err) throw err;
-        const obj = JSON.parse(data);
-        obj.forEach(element => {
-            posts.push(element)
-            if(element.published==true){
-               posts_true.push(element)
-            }
-        });
-    });
-    fs.readFile('data/categories.json', 'utf8', (err, cat) => {
-                if (err) throw err;
-                const obj2 = JSON.parse(cat);
-                obj2.forEach(element => {
-                category.push(element)
-                });
-      });
+const { resolve } = require("path");
+const Sequelize = require('sequelize');
+const { gte } = Sequelize.Op;
+
+var sequelize = new Sequelize('dvbukn3l9novg', 'ajagvpjrwuhvhq', '8ec9626cff1d29a505b8cf77f1a2b7c7a5a0f62c8116d9521bbe5b368c87c817', {
+    host: 'ec2-44-194-92-192.compute-1.amazonaws.com',
+    dialect: 'postgres',
+    port: 5432,
+    dialectOptions: {
+        ssl: { rejectUnauthorized: false }
+    },
+    query: { raw: true }
+});
+var Post = sequelize.define('Post', {
+    body: Sequelize.TEXT, 
+    title: Sequelize.STRING, 
+    postDate: Sequelize.DATE,
+    featureImage: Sequelize.STRING,
+    published: Sequelize.BOOLEAN 
+});
+
+var Category= sequelize.define('Category', {
+    category : Sequelize.STRING
+});
+
+Post.belongsTo(Category, {foreignKey: 'category'});
+
+
+function initialize(val){
+    var connect =false;
+   sequelize.sync({ force: true }).then(()=>{connect=true});
    return new Promise((resolve,reject)=>{
     setTimeout(()=>{
-        if(posts.length>0 && category.length>0){
-            resolve("Data Successfull")
-        }
-       reject(Error("No data found"))
+        sequelize.sync({ force: true }).then(()=> {
+            resolve("Connected")
+        }).catch(()=> {
+            reject("Unable to Sync to the Database")
+        });   
     },3000)
     
 })
@@ -34,101 +45,148 @@ function initialize(){
 
 function getAllPosts(){
     return new Promise((resolve,reject)=>{
-        if(posts.length>0 && category.length>0){
-            resolve(posts)
-        }
-        else{
-            reject(Error("No data found"))
-        }
+       Post.findAll().then(function(data){
+             resolve(data) ;
+          }).catch(function(error){
+           reject("no results returned")    
+          });
     })
 }
 function getPublishedPosts(){
     return new Promise((resolve,reject)=>{
-        if(posts.length>0 && category.length>0){
-            resolve(posts_true)
-        }
-        else{
-            reject(Error("No data found"))
-        }
+        Post.findAll({
+            where:{
+                published:true
+            }
+        }).then(function(data){
+          resolve(data) ;
+       }).catch(function(error){
+          reject(Error("no results returned"))
+      });
     })
 }
 function getCategories(){
     return new Promise((resolve,reject)=>{
-        if(posts.length>0 && category.length>0){
-            resolve(category)
-        }
-        else{
-            reject(Error("No data found"))
-        }
+        Category.findAll().then(function(data){
+          resolve(data) ;
+       }).catch(function(error){
+          reject(Error("no results returned"))
+      });
     })
 }
 function addPost(postData){
-    postData = JSON.parse(JSON.stringify(postData));
-    if(postData.published!=='undefined'){
-        postData.published=true;
-        posts_true.push(postData)
+    postData.published = (postData.published) ? true : false;
+    for(prop in postData){
+        if(postData[prop]==""){
+            postData[prop] = null
+        }
     }
-    else{
-        postData.published=false;
-    }
-    postData.id=posts.length/2+1;
-    posts.push(postData)
+    postData.postDate=new Date();
+    
     return new Promise((resolve,reject)=>{
         setTimeout(()=>{
-                resolve(postData)
-               reject(Error("No data found"))
+            
+            Post.create({
+                body: postData.body, 
+                title: postData.title, 
+                postDate: postData.postDate,
+                featureImage: postData.featureImage,
+                published: postData.published 
+            }).then(function(){
+                resolve("Success")
+            }).catch(function(){
+                reject("unable to create post")
+            })
         },3000)
     })
 }
 function getPostsByCategory(categoryValue){
-    let ret=new Array
-    posts.forEach(function (item, index) {  
-        if(item.category==categoryValue){
-            ret.push(item);
-        }
-      });
       return new Promise((resolve,reject)=>{
-        if(ret.length>0){
-            resolve(ret)
-        }
-        else{
+          Post.findAll({
+              where:{
+                  category:categoryValue
+              }
+          }).then(function(data){
+            resolve(data) ;
+         }).catch(function(error){
             reject(Error("no results returned"))
-        }
+        });
     })
 }
 function getPostsByMinDate(minDate){
-    let ret=new Array
-    date2=new Date(minDate)
-    posts.forEach(function (item, index) { 
-        date1=new Date(item.postDate)
-        if(date1>=date2){
-            ret.push(item);
-        }
-      });
       return new Promise((resolve,reject)=>{
-        if(ret.length>0){
-            resolve(ret)
-        }
-        else{
+        Post.findAll({
+            where: {
+                postDate: {
+                    [gte]: new Date(minDateStr)
+                }
+            }
+        }).then(function(data){
+            resolve(data) ;
+        }).catch(function(error){
             reject(Error("no results returned"))
-        }
+        });
     })
 }
-function getPostsById(id){
-    let ret=new Array
-    posts.forEach(function (item, index) { 
-        if(item.id==id){
-            ret.push(item);
+function getPostsById(p_id){
+    Post.findAll({
+        where:{
+            id:p_id
         }
-      });
+    }).then(function(data){
+      resolve(data) ;
+   }).catch(function(error){
+      reject(Error("no results returned"))
+  });
+}
+function getPublishedPostsByCategory(categoryValue){
       return new Promise((resolve,reject)=>{
-        if(ret.length>0){
-            resolve(ret)
+      Post.findAll({
+        where:{
+            category: categoryValue,
+            published :true
         }
-        else{
-            reject(Error("no results returned"))
-        }
+    }).then(function(data){
+            resolve(data);
+    }).catch(function(error){
+            reject("no results returned");
+    });
     })
 }
-module.exports={initialize,getCategories,getPublishedPosts,getAllPosts,addPost,getPostsByCategory,getPostsByMinDate,getPostsById}
+function addCategory(categoryData){
+    for(prop in categoryData){
+        if(categoryData[prop]==""){
+            categoryData[prop] = null
+        }
+    } 
+    return new Promise((resolve,reject)=>{
+    Category.create({
+       category:categoryData.category
+    }).then(function(){
+        resolve("Success")
+    }).catch(function(){
+        reject("unable to create category")
+    }) 
+})
+}
+function deleteCategoryById(c_id){
+    return new Promise((resolve,reject)=>{
+        Category.destroy({
+            where:{
+                id: c_id
+            }
+        }).then(function(){resolve("Deleted Successfully")}).catch(function(){reject("Not Deleted")})
+    })   
+}
+function deletePostById(p_id){
+    return new Promise((resolve,reject)=>{
+        Post.destroy({
+            where:{
+                id: p_id
+            }
+        }).then(function(){resolve("Deleted Successfully")}).catch(function(){reject("Not Deleted")})
+    }) 
+}
+
+module.exports={initialize,getCategories,getPublishedPosts,getAllPosts,addPost,getPostsByCategory,getPostsByMinDate,getPostsById,getPublishedPostsByCategory,addCategory,deletePostById,deleteCategoryById}
 
