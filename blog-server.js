@@ -4,8 +4,8 @@ const { resolve } = require("path");
 const Sequelize = require('sequelize');
 const { gte } = Sequelize.Op;
 
-var sequelize = new Sequelize('d4bofclibj8mre', 'dyrmsjqxrzrbls', '496808be423461a80ad74fa67fbb511788cfe0ad307d7da7c17d59ffe3de17cd', {
-    host: 'ec2-34-231-63-30.compute-1.amazonaws.com',
+var sequelize = new Sequelize('d56ljmssut0i60','fzuvhgoelhwhet','8e23c7ff7f2298655a3d35f8fe8fbea6f14302a36b6a3b5c44f07a7ff9ca8046', {
+    host: 'ec2-52-72-99-110.compute-1.amazonaws.com',
     dialect: 'postgres',
     port: 5432,
     dialectOptions: {

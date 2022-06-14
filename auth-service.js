@@ -12,7 +12,7 @@ var userSchema = new Schema({
 });
 let User;
 function initialize(){
-    let db = mongoose.createConnection(`mongodb+srv://user :pass@cluster0.suctt.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`);;
+    let db = mongoose.createConnection(`mongodb+srv://hashcode-ankit:aNKIT@cluster0.my9kvko.mongodb.net/?retryWrites=true&w=majority`);
     return new Promise((resolve,reject)=>{
 
         db.on('error', (err)=>{
